@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quran Recite Professional</title>
+
+<style>
+body{
+margin:0;
+font-family:Arial,sans-serif;
+background:linear-gradient(to bottom,#0f2027,#000);
+color:#FFD700;
+text-align:center;
+}
+
+header{
+padding:14px;
+background:#111;
+font-weight:bold;
+font-size:18px;
+}
+
+.section{
+border-top:1px solid #333;
+padding:12px 0;
+}
+
+.controls{
+display:flex;
+flex-wrap:wrap;
+justify-content:center;
+align-items:center;
+gap:10px;
+margin:8px;
+}
+
+select,input{
+padding:6px;
+border-radius:6px;
+border:none;
+font-weight:bold;
+}
+
+button{
+padding:6px 12px;
+border-radius:6px;
+border:none;
+font-weight:bold;
+background:#FFD700;
+color:black;
+cursor:pointer;
+}
+
+label{
+font-size:13px;
+color:white;
+display:flex;
+align-items:center;
+gap:4px;
+}
+
+.rangeText{
+font-size:12px;
+color:white;
+}
+
+#progressBar{
+width:90%;
+height:6px;
+background:#333;
+margin:8px auto;
+border-radius:10px;
+overflow:hidden;
+}
+
+#progress{
+height:100%;
+width:0%;
+background:#FFD700;
+}
+
+#ayahBox{
+margin:15px;
+padding:20px;
+background:#111;
+border-radius:12px;
+min-height:130px;
+display:flex;
+flex-direction:column;
+justify-content:center;
+align-items:center;
+}
+
+.arab{
+font-size:26px;
+direction:rtl;
+line-height:2;
+max-width:95%;
+word-wrap:break-word;
+}
+
+.bm{
+margin-top:8px;
+color:white;
+font-size:14px;
+}
+
+.immersive header,
+.immersive .section,
+.immersive footer{
+display:none;
+}
+
+body.immersive{
+overflow:hidden;
+}
+
+.immersive #ayahBox{
+position:fixed;
+inset:0;
+width:100%;
+height:100dvh;
+background:black;
+display:flex;
+flex-direction:column;
+justify-content:center;
+align-items:center;
+padding:8vh 6vw;
+box-sizing:border-box;
+overflow-y:auto;
+}
+
+footer{
+font-size:12px;
+opacity:0.7;
+margin:10px;
+}
+</style>
+</head>
+
+<body>
+
+<header>🌙 Quran Recite Professional</header>
+
+<!-- ================= RECITE BY JUZ ================= -->
+<div class="section">
+<h3>🕌 Recite by Juz</h3>
+
+<!-- Row 1 -->
+<div class="controls">
+<select id="juzSelect"></select>
+
+<select id="qariSelect">
+<option value="ar.alafasy">Mishary Rashid</option>
+<option value="ar.abdurrahmaansudais">Sudais</option>
+<option value="ar.minshawi">Minshawi</option>
+<option value="ar.husary">Husary</option>
+</select>
+
+<label><input type="radio" name="lang" value="ms.basmeih" checked> MAL</label>
+<label><input type="radio" name="lang" value="en.sahih"> ENG</label>
+</div>
+
+<!-- Row 2 -->
+<div class="controls">
+<label><input type="checkbox" id="continueJuzChk" checked> Continue Mode</label>
+<label><input type="checkbox" id="repeatJuzChk"> Repeat</label>
+<button onclick="startJuz()">▶️ Juz</button>
+</div>
+
+<div id="progressBar"><div id="progress"></div></div>
+</div>
+
+<!-- ================= RECITE BY SURAH ================= -->
+<div class="section">
+<h3>📖 Recite by Surah & Ayah</h3>
+
+<div class="controls">
+<select id="surahSelect"></select>
+<input type="number" id="ayahInput" placeholder="No Ayat" style="width:80px;">
+<span id="rangeInfo" class="rangeText"></span>
+</div>
+
+<div class="controls">
+<label><input type="checkbox" id="continueSurahChk"> Continue Mode</label>
+<label><input type="checkbox" id="repeatSurahChk"> Repeat</label>
+<button onclick="previewSurah()">GO</button>
+<button onclick="playSurah()">▶️ Ayah</button>
+</div>
+
+</div>
+
+<!-- Navigation -->
+<div class="controls">
+<button onclick="previousAyah()">⏮</button>
+<button onclick="pauseAudio()">⏸</button>
+<button onclick="resumeAudio()">▶</button>
+<button onclick="nextAyah()">⏭</button>
+</div>
+
+<!-- Utilities -->
+<div class="controls">
+<button onclick="toggleImmersive()">🔍</button>
+<label><input type="checkbox" id="bookmarkChk" checked> Auto Bookmark</label>
+<button onclick="sendWhatsApp()">WhatsApp</button>
+</div>
+
+<div id="ayahBox" onclick="exitImmersive()">
+<div id="ayahNumber"></div>
+<div class="arab" id="arabicText">Pilih Juz / Surah</div>
+<div class="bm" id="bmText"></div>
+</div>
+
+<audio id="audioPlayer"></audio>
+
+<footer>Developed by MH25</footer>
+
+<script>
+let ayahList=[],currentIndex=0,currentMode="";
+let audio=document.getElementById("audioPlayer");
+
+function getSelectedLang(){
+return document.querySelector('input[name="lang"]:checked').value;
+}
+
+// Populate Juz
+for(let i=1;i<=30;i++){
+let opt=document.createElement("option");
+opt.value=i;
+opt.text="Juz "+i;
+juzSelect.appendChild(opt);
+}
+
+// Surah Range
+function updateSurahRange(){
+if(!surahSelect.options.length) return;
+let total=parseInt(surahSelect.options[surahSelect.selectedIndex].dataset.total);
+ayahInput.min=1;
+ayahInput.max=total;
+ayahInput.value=1;
+rangeInfo.innerText="Julat: 1 - "+total;
+}
+
+async function loadSurah(){
+let res=await fetch("https://api.alquran.cloud/v1/surah");
+let data=await res.json();
+data.data.forEach(s=>{
+let opt=document.createElement("option");
+opt.value=s.number;
+opt.text=s.number+" - "+s.englishName;
+opt.dataset.total=s.numberOfAyahs;
+surahSelect.appendChild(opt);
+});
+updateSurahRange();
+}
+loadSurah();
+surahSelect.onchange=updateSurahRange;
+
+function updateProgress(){
+if(ayahList.length>0){
+progress.style.width=((currentIndex+1)/ayahList.length*100)+"%";
+}else{progress.style.width="0%";}
+}
+
+async function playAyah(num,resumeTime=0){
+
+let lang=getSelectedLang();
+
+let res=await fetch(`https://api.alquran.cloud/v1/ayah/${num}/editions/quran-uthmani,${lang}`);
+let data=await res.json();
+
+let arab=data.data[0];
+let trans=data.data[1];
+
+if(arab.numberInSurah==1 && arab.surah.number!=1){
+arab.text=arab.text.replace("بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ","").trim();
+}
+
+ayahNumber.innerText=arab.surah.englishName+" - Ayat "+arab.numberInSurah;
+arabicText.innerText=arab.text;
+bmText.innerText=trans.text;
+
+let audioRes=await fetch(`https://api.alquran.cloud/v1/ayah/${num}/${qariSelect.value}`);
+let audioData=await audioRes.json();
+audio.src=audioData.data.audio;
+
+audio.onloadedmetadata=function(){
+audio.currentTime=resumeTime;
+audio.play();
+};
+
+updateProgress();
+
+if(bookmarkChk.checked){
+localStorage.setItem("bookmark",JSON.stringify({
+ayah:num,time:resumeTime
+}));
+}
+}
+
+audio.onended=function(){
+if(currentMode=="juz"){
+if(repeatJuzChk.checked){audio.play();return;}
+if(!continueJuzChk.checked) return;
+}
+if(currentMode=="surah"){
+if(repeatSurahChk.checked){audio.play();return;}
+if(!continueSurahChk.checked) return;
+}
+currentIndex++;
+if(currentIndex<ayahList.length){
+playAyah(ayahList[currentIndex]);
+}
+};
+
+function startJuz(){
+currentMode="juz";
+fetch(`https://api.alquran.cloud/v1/juz/${juzSelect.value}`)
+.then(res=>res.json())
+.then(data=>{
+ayahList=data.data.ayahs.map(a=>a.number);
+currentIndex=0;
+playAyah(ayahList[0]);
+});
+}
+
+async function playSurah(){
+currentMode="surah";
+let s=surahSelect.value;
+let a=parseInt(ayahInput.value);
+let total=parseInt(surahSelect.options[surahSelect.selectedIndex].dataset.total);
+
+if(!s||!a||a<1||a>total){
+alert("Julat ayat Surah ini ialah 1 hingga "+total);
+return;
+}
+
+if(continueSurahChk.checked){
+let res=await fetch(`https://api.alquran.cloud/v1/surah/${s}`);
+let data=await res.json();
+ayahList=data.data.ayahs.slice(a-1).map(x=>x.number);
+}else{
+ayahList=[`${s}:${a}`];
+}
+
+currentIndex=0;
+playAyah(ayahList[0]);
+}
+
+// ================= PREVIEW ONLY (NO AUDIO) =================
+
+async function displayAyahOnly(num){
+
+let lang=getSelectedLang();
+
+let res=await fetch(`https://api.alquran.cloud/v1/ayah/${num}/editions/quran-uthmani,${lang}`);
+let data=await res.json();
+
+let arab=data.data[0];
+let trans=data.data[1];
+
+if(arab.numberInSurah==1 && arab.surah.number!=1){
+arab.text=arab.text.replace("بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ","").trim();
+}
+
+ayahNumber.innerText=arab.surah.englishName+" - Ayat "+arab.numberInSurah;
+arabicText.innerText=arab.text;
+bmText.innerText=trans.text;
+
+updateProgress();
+}
+
+async function previewSurah(){
+
+let s=surahSelect.value;
+let a=parseInt(ayahInput.value);
+let total=parseInt(surahSelect.options[surahSelect.selectedIndex].dataset.total);
+
+if(!s||!a||a<1||a>total){
+alert("Julat ayat Surah ini ialah 1 hingga "+total);
+return;
+}
+
+currentMode="preview";
+ayahList=[`${s}:${a}`];
+currentIndex=0;
+
+displayAyahOnly(ayahList[0]);
+}
+
+function previousAyah(){if(currentIndex>0){currentIndex--;playAyah(ayahList[currentIndex]);}}
+function nextAyah(){if(currentIndex<ayahList.length-1){currentIndex++;playAyah(ayahList[currentIndex]);}}
+function pauseAudio(){audio.pause();}
+function resumeAudio(){audio.play();}
+
+function toggleImmersive(){document.body.classList.toggle("immersive");}
+function exitImmersive(){document.body.classList.remove("immersive");}
+
+function sendWhatsApp(){
+let text="Assalamualaikum, Komen:";
+let url=`https://wa.me/60132063007?text=${encodeURIComponent(text)}`;
+window.open(url,'_blank');
+}
+
+window.onload=function(){
+let saved=localStorage.getItem("bookmark");
+if(saved){
+let data=JSON.parse(saved);
+ayahList=[data.ayah];
+currentIndex=0;
+playAyah(data.ayah,data.time);
+}
+};
+</script>
+
+</body>
+</html>
